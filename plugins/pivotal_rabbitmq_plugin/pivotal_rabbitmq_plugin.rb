@@ -1,3 +1,4 @@
+
 #! /usr/bin/env ruby
 #
 # The MIT License
@@ -45,13 +46,12 @@ module NewRelic
         end
       end
 
+
       def poll_cycle
         begin
           if "#{self.debug}" == "true" 
             puts "[RabbitMQ] Debug Mode On: Metric data will not be sent to new relic"
           end
-
-          report_metric_check_debug 'Queued Messages/Ready', 'messages', queue_size_ready
           report_metric_check_debug 'Queued Messages/Unacknowledged', 'messages', queue_size_unacknowledged
 
           report_metric_check_debug 'Message Rate/Acknowledge', 'messages/sec', ack_rate
@@ -65,22 +65,36 @@ module NewRelic
           report_metric_check_debug 'Node/Erlang Processes', 'processes', node_info('proc_used')
           report_metric_check_debug 'Node/Memory Used', 'bytes', node_info('mem_used')
 
-          report_queues
+          report_metric_check_debug 'Cluster Status/Partitioned', 'nodes', rmq_manager.nodes.count { |n| Array(n['partitions']).any? }
+          report_metric_check_debug 'Cluster Status/Running', 'nodes', rmq_manager.nodes.count { |n| n['running'] }
+          report_metric_check_debug 'Cluster Status/Stopped', 'nodes', rmq_manager.nodes.count { |n| !n['running'] }
 
-        rescue Exception => e
-          $stderr.puts "[RabbitMQ] Exception while processing metrics. Check configuration."
-          $stderr.puts e.message  
-          if "#{self.debug}" == "true"
-            $stderr.puts e.backtrace.inspect
+
+          report_metric_check_debug 'Object Totals/Channels', 'channels', rmq_manager.overview['object_totals']['channels']
+          report_metric_check_debug 'Object Totals/Consumers', 'consumers', rmq_manager.overview['object_totals']['consumers']
+          report_metric_check_debug 'Object Totals/Connections', 'connections', rmq_manager.overview['object_totals']['connections']
+          report_metric_check_debug 'Object Totals/Queues', 'queues', rmq_manager.overview['object_totals']['queues']
+          report_metric_check_debug 'Object Totals/Exchanges', 'exchanges', rmq_manager.overview['object_totals']['exchanges']
+
+
+
+
+          report_queues
+       rescue Exception => e
+        $stderr.puts "[RabbitMQ] Exception while processing metrics. Check configuration."
+        $stderr.puts e.message
+        if "#{self.debug}" == "true"
+          $stderr.puts e.backtrace.inspect
           end
         end
       end
+
 
       def report_metric_check_debug(metricname, metrictype, metricvalue)
         if "#{self.debug}" == "true"
           puts("#{metricname}[#{metrictype}] : #{metricvalue}")
         else
-          report_metric metricname, metrictype, metricvalue
+          report_metric_check_debug metricname, metrictype, metricvalue
         end
       end
       private
@@ -169,6 +183,7 @@ module NewRelic
           report_metric_check_debug mk_path('Queue', q['vhost'], q['name'], 'Consumers', 'Active'), 'consumers', q['active_consumers']
         end
       end
+
 
       def mk_path(*args)
         args.map { |a| URI.encode_www_form_component a }.join "/"
