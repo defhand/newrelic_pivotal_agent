@@ -52,6 +52,8 @@ module NewRelic
           if "#{self.debug}" == "true" 
             puts "[RabbitMQ] Debug Mode On: Metric data will not be sent to new relic"
           end
+          
+          report_metric_check_debug 'Queued Messages/Ready', 'messages', queue_size_ready
           report_metric_check_debug 'Queued Messages/Unacknowledged', 'messages', queue_size_unacknowledged
 
           report_metric_check_debug 'Message Rate/Acknowledge', 'messages/sec', ack_rate
